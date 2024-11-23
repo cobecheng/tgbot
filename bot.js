@@ -11,7 +11,7 @@ app.use(cors());
 // Simple start command to ensure the bot is working
 bot.command('start', (ctx) => {
 
-    const url = 'https://9c21-93-152-210-204.ngrok-free.app/create-family';
+    const url = 'https://createfamily.onrender.com/';
   
     const keyboard = new InlineKeyboard().webApp('Open Adventure', url);
   
@@ -48,6 +48,6 @@ app.post('/create-family', async (req, res) => {
 // Start the bot and the backend server
 bot.start();
 // bot.js
-app.listen(4000, () => {
-    console.log('Bot backend is running on port 4000');
+app.listen(3000, () => {
+    console.log('Bot backend is running on port 3000');
   });
