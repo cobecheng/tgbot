@@ -1,16 +1,16 @@
 require('dotenv').config();
 const express = require('express');
-const { Bot, InlineKeyboard } = require('grammy');
+const { Bot } = require('grammy');
 
-const bot = new Bot(process.env.BOT_TOKEN); // Initialize bot with token
+const bot = new Bot(process.env.BOT_TOKEN); // Initialize the bot
 const app = express();
-app.use(express.json());
-const cors = require('cors');
-app.use(cors());
+app.use(express.json()); // Middleware to parse JSON requests
 
-// Webhook endpoint
+// Webhook route
 const webhookPath = '/webhook';
-const webhookUrl = `https://tgbot-xn2d.onrender.com${webhookPath}`;
+
+// Add webhook callback
+app.use(webhookPath, bot.webhookCallback(webhookPath));
 
 // Telegram command for starting interaction
 bot.command('start', (ctx) => {
@@ -35,19 +35,17 @@ app.post('/create-family', async (req, res) => {
     }
   });
 
-// Attach Telegram bot webhook
-app.use(webhookPath, bot.webhookCallback(webhookPath));
-
-// Start Express server and set the webhook
+// Start server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, async () => {
-  console.log(`Server is running on port ${PORT}`);
+    console.log(`Server is running on port ${PORT}`);
 
-  try {
-    // Set webhook for Telegram bot
-    await bot.api.setWebhook(webhookUrl);
-    console.log(`Webhook set to ${webhookUrl}`);
-  } catch (error) {
-    console.error('Error setting webhook:', error);
-  }
+    // Set Telegram webhook
+    const webhookUrl = `https://tgbot-xn2d.onrender.com${webhookPath}`;
+    try {
+        await bot.api.setWebhook(webhookUrl);
+        console.log(`Webhook successfully set to ${webhookUrl}`);
+    } catch (error) {
+        console.error('Error setting webhook:', error);
+    }
 });
