@@ -1,53 +1,51 @@
 require('dotenv').config();
 const express = require('express');
-const { Composer, Bot, InlineKeyboard, session } = require('grammy');
+const { Bot, InlineKeyboard } = require('grammy');
 
-const bot = new Bot(process.env.BOT_TOKEN);
+const bot = new Bot(process.env.BOT_TOKEN); // Initialize bot with token
 const app = express();
 app.use(express.json());
 const cors = require('cors');
 app.use(cors());
 
-// Simple start command to ensure the bot is working
+// Webhook endpoint
+const webhookPath = '/webhook';
+const webhookUrl = `https://tgbot-xn2d.onrender.com${webhookPath}`;
+
+// Telegram command for starting interaction
 bot.command('start', (ctx) => {
+  const keyboard = new InlineKeyboard().webApp('Open Adventure', 'https://createfamily.onrender.com/');
+  ctx.reply('Hey! I’m here to notify you about your RPG adventures.', { reply_markup: keyboard });
+});
 
-    const url = 'https://createfamily.onrender.com/';
-  
-    const keyboard = new InlineKeyboard().webApp('Open Adventure', url);
-  
-    ctx.reply(`Hey! I'm here to notify you about your RPG adventures.`, { reply_markup: keyboard });
-  });
-
-
-// Handle "Create Family" requests
+// Create Family API
 app.post('/create-family', async (req, res) => {
   const { userId } = req.body;
 
   if (!userId) {
-    return res.status(400).send({ error: 'User ID is required' });
+    return res.status(400).json({ error: 'User ID is required' });
   }
 
   try {
-    // Create a new group chat
-    const chatTitle = `Family Group for User ${userId}`;
-    const newGroup = await bot.api.createChat({ type: 'group', title: chatTitle });
+    // Simulate group creation by sending a message to the user
+    const message = `Family group simulation: Welcome, User ${userId}!`;
 
-    // Add the user to the group
-    await bot.api.addChatMember(newGroup.id, userId);
+    // You can replace this logic with another implementation (e.g., notifying admins to create a group)
+    await bot.api.sendMessage(userId, message);
 
-    // Optionally, send a message in the group
-    await bot.api.sendMessage(newGroup.id, `Welcome to your new family group, User ${userId}!`);
-
-    return res.send({ success: true, groupTitle: chatTitle });
+    return res.status(200).json({ success: true, message });
   } catch (error) {
     console.error('Error creating family group:', error);
-    return res.status(500).send({ error: 'Failed to create family group.' });
+    return res.status(500).json({ error: 'Failed to create family group.' });
   }
 });
 
-// Start the bot and the backend server
-bot.start();
-// bot.js
-app.listen(3000, () => {
-    console.log('Bot backend is running on port 3000');
-  });
+// Setup webhook
+app.use(bot.webhookCallback(webhookPath));
+
+// Start the Express server
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, async () => {
+  console.log(`Bot backend is running on port ${PORT}`);
+  await bot.api.setWebhook(webhookUrl); // Set Telegram webhook
+});
