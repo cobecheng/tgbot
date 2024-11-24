@@ -1,51 +1,60 @@
 require('dotenv').config();
 const express = require('express');
+const MTProto = require('@mtproto/core');
 const { Bot } = require('grammy');
 
-const bot = new Bot(process.env.BOT_TOKEN); // Initialize the bot
+// Initialize MTProto (Telegram client for MTProto API)
+const mtproto = new MTProto({
+  api_id: process.env.TELEGRAM_API_ID,
+  api_hash: process.env.TELEGRAM_API_HASH,
+});
+
+// Initialize Telegram Bot (Bot API)
+const bot = new Bot(process.env.BOT_TOKEN);
+
+// Express app
 const app = express();
-app.use(express.json()); // Middleware to parse JSON requests
+app.use(express.json());
 
-// Webhook route
-const webhookPath = '/webhook';
-
-// Add webhook callback
-app.use(webhookPath, bot.webhookCallback(webhookPath));
-
-// Telegram command for starting interaction
-bot.command('start', (ctx) => {
-  const keyboard = new InlineKeyboard().webApp('Open Adventure', 'https://createfamily.onrender.com/');
-  ctx.reply('Hey! I’m here to notify you about your RPG adventures.', { reply_markup: keyboard });
-});
-
-// Handle API request from React
+// Create Family API Endpoint
 app.post('/create-family', async (req, res) => {
-    const { userId } = req.body;
-  
-    if (!userId) {
-      return res.status(400).json({ error: 'User ID is required' });
-    }
-  
-    try {
-      await bot.api.sendMessage(userId, `Family group created for User ${userId}.`);
-      res.status(200).json({ success: true });
-    } catch (error) {
-      console.error('Error sending message:', error);
-      res.status(500).json({ error: 'Failed to send message.' });
-    }
-  });
+  const { telegramUserId } = req.body;
+  if (!telegramUserId) {
+    return res.status(400).json({ error: 'telegramUserId is required' });
+  }
 
-// Start server
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, async () => {
-    console.log(`Server is running on port ${PORT}`);
+  try {
+    // Step 1: Get the user's details
+    const user = await bot.api.getChat(telegramUserId);
 
-    // Set Telegram webhook
-    const webhookUrl = `https://tgbot-xn2d.onrender.com${webhookPath}`;
-    try {
-        await bot.api.setWebhook(webhookUrl);
-        console.log(`Webhook successfully set to ${webhookUrl}`);
-    } catch (error) {
-        console.error('Error setting webhook:', error);
-    }
+    // Step 2: Create the group using MTProto
+    const groupName = `Family Group for ${user.first_name}`;
+    const group = await mtproto.call('messages.createChat', {
+      users: [
+        { _: 'inputUser', user_id: telegramUserId }, // The user to invite
+      ],
+      title: groupName,
+    });
+
+    // Step 3: Invite the user to the group
+    await mtproto.call('messages.addChatUser', {
+      chat_id: group.chat.id,
+      user_id: { _: 'inputUser', user_id: telegramUserId },
+    });
+
+    // Respond to the mini-app
+    res.json({ success: true, groupName });
+  } catch (error) {
+    console.error('Error creating family group:', error);
+    res.status(500).json({ error: 'Failed to create family group.' });
+  }
 });
+
+// Start Express server
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Backend running on port ${PORT}`);
+});
+
+// Start Telegram Bot
+bot.start();
